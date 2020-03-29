@@ -3,23 +3,40 @@
 let Vue;
 
 class Store {
-  constructor(options){
+  constructor(options) {
+    // 保存mutaions
+    this._mutations = options.mutations;
+    this._actions = options.actions;
+    this._wrappedGetters = options.getters;
+
+    const computed = {};
+    this.getters = {};
+    const store = this;
+    Object.keys(this._wrappedGetters).forEach(key => {
+      // 获取用户定义的getter
+      const fn = store._wrappedGetters[key];
+      // 转换为computed可以使用的无参数形式
+      computed[key] = function () {
+        return fn(store.state);
+      }
+      // 为getters定义只读属性
+      Object.defineProperty(store.getters, key, {
+        get: () => store._vm[key]
+      })
+    })
+
     // 只要放到data上，即成为响应式的数据
     // vm.data.count  vm.count
     this._vm = new Vue({
       data: {
         $$state: options.state
-      }
+      },
+      computed
     })
-    
-    // 保存mutaions
-    this._mutations = options.mutations;
-
-    this._actions = options.actions;
 
     // 绑定commit、dispatch方法中的this到Store实例上
-    const store = this;
-    const {commit, dispatch} = store;
+    // const store = this;
+    const { commit, dispatch } = store;
     this.commit = function boundCommit(type, payload) {
       commit.call(store, type, payload)
     }
@@ -35,14 +52,14 @@ class Store {
 
   set state(v) {
     console.error('表改，这里不能修改state，想改请使用replaceState()');
-    
+
   }
 
   // commit: type-mutation类型，payload-参数
   commit(type, payload) {
     const entry = this._mutations[type]
     if (!entry) {
-      console.error('unknown mutation type:'+type);
+      console.error('unknown mutation type:' + type);
       return
     }
     // 在这可以做一些拦截处理
@@ -55,11 +72,11 @@ class Store {
   dispatch(type, payload) {
     const entry = this._actions[type]
     if (!entry) {
-      console.error('unknown mutation type:'+type);
+      console.error('unknown mutation type:' + type);
       return
     }
     // 在这可以做一些拦截处理
-    
+
     // 传递上下文进去，实际上就是Store实例
     entry(this, payload)
   }
@@ -79,4 +96,4 @@ function install(_Vue) {
 }
 
 // 下面导出的对象等同于Vuex，实例化时使用new Vuex.Store
-export default {Store,install}
+export default { Store, install }
